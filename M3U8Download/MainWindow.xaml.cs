@@ -32,6 +32,7 @@ namespace M3U8Download
         {
             try
             {
+                btnDownload.IsEnabled = false;
                 var folder = System.IO.Path.GetDirectoryName(_data.SavePath);
                 if (System.IO.Directory.Exists(folder) == false)
                 {
@@ -103,6 +104,22 @@ namespace M3U8Download
             catch (Exception ex)
             {
                 MessageBox.Show(ex.ToString());
+            }
+            finally
+            {
+                btnDownload.IsEnabled = true;
+            }
+        }
+
+        private void btnBrowser(object sender, RoutedEventArgs e)
+        {
+            using (System.Windows.Forms.SaveFileDialog fd = new System.Windows.Forms.SaveFileDialog())
+            {
+                fd.Filter = "*.ts|*.ts";
+                if(fd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    _data.SavePath = fd.FileName;
+                }
             }
         }
     }

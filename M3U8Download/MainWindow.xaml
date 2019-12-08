@@ -13,10 +13,10 @@
             <Label Content="save:"></Label>
             <StackPanel Orientation="Horizontal">
                 <TextBox Text="{Binding SavePath}" Width="300"></TextBox>
-                <Button Content="browse..."></Button>
+                <Button Content="browse..." Click="btnBrowser"></Button>
             </StackPanel>
             <StackPanel Orientation="Horizontal">
-                <Button Content="Download" Click="btn_Download"></Button>
+                <Button x:Name="btnDownload" Content="Download" Click="btn_Download"></Button>
             </StackPanel>
             <Label Content="{Binding Error}"></Label>
         </StackPanel>
