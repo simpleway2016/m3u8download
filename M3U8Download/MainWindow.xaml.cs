@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -22,10 +23,13 @@ namespace M3U8Download
     public partial class MainWindow : Window
     {
         Model _data = new Model();
+
         public MainWindow()
         {
             InitializeComponent();
             this.DataContext = _data;
+
+            
         }
 
         private async void btn_Download(object sender, RoutedEventArgs e)
@@ -44,17 +48,62 @@ namespace M3U8Download
                 client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1");
                 var m3u8content = await (await client.GetAsync(_data.Url)).Content.ReadAsStringAsync();
                 var lines = m3u8content.Split('\n');
-                lines = lines.Where(m => m.Trim().EndsWith(".ts")).Select(m=>m.Trim()).ToArray();
 
                 var serverUrl = $"{url.Scheme}://{url.Host}{(url.IsDefaultPort ? "" : ":" + url.Port)}";
-                //List<string> filenames = new List<string>();
-                StringBuilder m3u8filelist = new StringBuilder();
                 var tmpFolder = $"{AppDomain.CurrentDomain.BaseDirectory}temp";
-               
                 if (System.IO.Directory.Exists(tmpFolder) == false)
                 {
                     System.IO.Directory.CreateDirectory(tmpFolder);
                 }
+
+                StringBuilder mynewm3u8FileContent = new StringBuilder();
+                foreach( var line in lines )
+                {
+                    if(line.Trim().EndsWith(".ts"))
+                    {
+                       
+                        mynewm3u8FileContent.AppendLine($"{tmpFolder}\\{System.IO.Path.GetFileName(line)}");
+                    }
+                    else if (line.Trim().Contains(".key"))
+                    {
+                        //#EXT-X-KEY:METHOD=AES-128,URI="/20191207/UqNDhOCy/1000kb/hls/key.key"
+                        var m = Regex.Match(line, @"((?![\'|\""]).)+\.key");
+                        var fileurl = $"{serverUrl}{m.Value}";
+
+                        while (true)
+                        {
+                            try
+                            {
+                               
+                                var filedata = await (await client.GetAsync(fileurl)).Content.ReadAsByteArrayAsync();
+                                System.IO.File.WriteAllBytes($"{tmpFolder}\\index.key", filedata);
+                                break;
+
+                            }
+                            catch (Exception ex)
+                            {
+                                _data.Error = ex.Message;
+                                Thread.Sleep(1000);
+                            }
+                        }
+                        var strLine = line.Replace(m.Value, $"{tmpFolder}\\index.key".Replace("\\","/"));
+                        mynewm3u8FileContent.AppendLine(strLine.Trim());
+                    }
+                    else
+                    {
+                        mynewm3u8FileContent.AppendLine(line.Trim());
+                    }
+                }
+
+                lines = lines.Where(m => m.Trim().EndsWith(".ts")).Select(m=>m.Trim()).ToArray();
+
+            
+                //List<string> filenames = new List<string>();
+                StringBuilder m3u8filelist = new StringBuilder();
+               
+                
+               
+              
                 for (int i = 0; i < lines.Length; i ++)
                 {
                     var line = lines[i];
@@ -64,9 +113,14 @@ namespace M3U8Download
                         try
                         {
                             var fileurl = $"{serverUrl}{line}";
-                            var filedata = await (await client.GetAsync(fileurl)).Content.ReadAsByteArrayAsync();
                             var filename = $"{tmpFolder}\\{ System.IO.Path.GetFileName(line)}";
-                            System.IO.File.WriteAllBytes(filename, filedata);
+                            if( System.IO.File.Exists(filename) == false )
+                            {
+                                var filedata = await (await client.GetAsync(fileurl)).Content.ReadAsByteArrayAsync();
+
+                                System.IO.File.WriteAllBytes(filename, filedata);
+                            }
+                           
                             // filenames.Add(filename);
                             m3u8filelist.AppendLine($"file '{filename}'");
                             _data.Title = ( i * 100.0 / lines.Length).ToString("f2") + "%";
@@ -82,13 +136,33 @@ namespace M3U8Download
                     }
                    
                 }
-                System.IO.File.WriteAllText($"{tmpFolder}\\index.txt" , m3u8filelist.ToString());
+                //System.IO.File.WriteAllText($"{tmpFolder}\\index.txt" , m3u8filelist.ToString());
+                System.IO.File.WriteAllText($"{tmpFolder}\\index.m3u8", mynewm3u8FileContent.ToString());
                 _data.Title = "正在合并...";
-                //-acodec copy -vcodec copy -absf aac_adtstoasc
-                System.Diagnostics.Process.Start($"{AppDomain.CurrentDomain.BaseDirectory}ffmpeg.exe", $"-f concat -safe 0 -i \"{tmpFolder}\\index.txt\" -acodec copy -vcodec copy -absf aac_adtstoasc \"{_data.SavePath}\"").WaitForExit();
+
                 try
                 {
-                    System.IO.Directory.Delete(tmpFolder, true);
+                    System.IO.File.Delete(_data.SavePath);
+                }
+                catch
+                {
+
+                }
+                //-acodec copy -vcodec copy -absf aac_adtstoasc 
+                //-f concat -i .\1.txt -c copy .\output.mkv
+                // -protocol_whitelist "file,http,crypto,tcp" -i .\temp\index.m3u8 -acodec copy -vcodec copy -absf aac_adtstoasc out.mp4
+                //-i yoururl -acodec copy -vcodec copy -absf aac_adtstoasc output.mp4
+                //System.Diagnostics.Process.Start($"{AppDomain.CurrentDomain.BaseDirectory}ffmpeg.exe", $"-f concat -safe 0 -i \"{tmpFolder}\\index.txt\" -acodec copy -vcodec copy -absf aac_adtstoasc \"{_data.SavePath}\"").WaitForExit();
+                //System.Diagnostics.Process.Start($"{AppDomain.CurrentDomain.BaseDirectory}ffmpeg.exe", $"-f concat -i \"{tmpFolder}\\index.txt\" -c copy \"{_data.SavePath}\"").WaitForExit();
+                System.Diagnostics.Process.Start($"{AppDomain.CurrentDomain.BaseDirectory}ffmpeg.exe", $"-protocol_whitelist \"file,http,crypto,tcp\" -i \"{tmpFolder}\\index.m3u8\" -acodec copy -vcodec copy -absf aac_adtstoasc \"{_data.SavePath}\"").WaitForExit();
+                if (System.IO.File.Exists(_data.SavePath) == false)
+                    throw new Exception("ffmpeg error");
+
+                try
+                {
+                    var files = System.IO.Directory.GetFiles(tmpFolder);
+                    foreach (var f in files)
+                        System.IO.File.Delete(f);
                 }
                 catch
                 {
