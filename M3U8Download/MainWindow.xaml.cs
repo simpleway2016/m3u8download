@@ -40,6 +40,7 @@ namespace M3U8Download
                 }
                 var url = new Uri(_data.Url);
                 System.Net.Http.HttpClient client = new System.Net.Http.HttpClient();
+                client.Timeout = new TimeSpan(0, 0, 8);
                 client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1");
                 var m3u8content = await (await client.GetAsync(_data.Url)).Content.ReadAsStringAsync();
                 var lines = m3u8content.Split('\n');
@@ -49,14 +50,7 @@ namespace M3U8Download
                 //List<string> filenames = new List<string>();
                 StringBuilder m3u8filelist = new StringBuilder();
                 var tmpFolder = $"{AppDomain.CurrentDomain.BaseDirectory}temp";
-                try
-                {
-                    System.IO.Directory.Delete(tmpFolder, true);
-                }
-                catch
-                {
-
-                }
+               
                 if (System.IO.Directory.Exists(tmpFolder) == false)
                 {
                     System.IO.Directory.CreateDirectory(tmpFolder);
@@ -90,7 +84,8 @@ namespace M3U8Download
                 }
                 System.IO.File.WriteAllText($"{tmpFolder}\\index.txt" , m3u8filelist.ToString());
                 _data.Title = "正在合并...";
-                System.Diagnostics.Process.Start($"{AppDomain.CurrentDomain.BaseDirectory}ffmpeg.exe", $"-f concat -safe 0 -i \"{tmpFolder}\\index.txt\" -c copy \"{_data.SavePath}\"").WaitForExit();
+                //-acodec copy -vcodec copy -absf aac_adtstoasc
+                System.Diagnostics.Process.Start($"{AppDomain.CurrentDomain.BaseDirectory}ffmpeg.exe", $"-f concat -safe 0 -i \"{tmpFolder}\\index.txt\" -acodec copy -vcodec copy -absf aac_adtstoasc \"{_data.SavePath}\"").WaitForExit();
                 try
                 {
                     System.IO.Directory.Delete(tmpFolder, true);
@@ -115,7 +110,7 @@ namespace M3U8Download
         {
             using (System.Windows.Forms.SaveFileDialog fd = new System.Windows.Forms.SaveFileDialog())
             {
-                fd.Filter = "*.ts|*.ts";
+                fd.Filter = "*.mp4|*.mp4";
                 if(fd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
                     _data.SavePath = fd.FileName;
