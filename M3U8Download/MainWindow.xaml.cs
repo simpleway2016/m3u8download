@@ -66,7 +66,7 @@ namespace M3U8Download
                     }
                     else if (line.Trim().Contains(".key"))
                     {
-                        //#EXT-X-KEY:METHOD=AES-128,URI="/20191207/UqNDhOCy/1000kb/hls/key.key"
+                        //#EXT-X-KEY:METHOD=AES-128,URI="/20191/key.key"
                         var m = Regex.Match(line, @"((?![\'|\""]).)+\.key");
                         var fileurl = $"{serverUrl}{m.Value}";
 
