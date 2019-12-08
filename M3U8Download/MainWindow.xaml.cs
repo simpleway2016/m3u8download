@@ -69,7 +69,7 @@ namespace M3U8Download
                             System.IO.File.WriteAllBytes(filename, filedata);
                             // filenames.Add(filename);
                             m3u8filelist.AppendLine($"file '{filename}'");
-                            this.Title =( i * 100.0 / lines.Length).ToString("f2") + "%";
+                            _data.Title = ( i * 100.0 / lines.Length).ToString("f2") + "%";
                             _data.Error = null;
                             break;
                         }
@@ -121,7 +121,7 @@ namespace M3U8Download
 
     class Model : Way.Lib.DataModel
     {
-        private string _title;
+        private string _title = "";
         public string Title
         {
             get => _title;
